@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备遥测事件路由服务</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <h1>设备遥测协议解析与事件路由服务</h1>
+    <nav>
+      <a href="/" data-view="home">首页</a>
+      <a href="/devices" data-view="devices">设备管理</a>
+      <a href="/telemetry" data-view="telemetry">报文上报</a>
+      <a href="/rules" data-view="rules">路由规则</a>
+      <a href="/events" data-view="events">事件查询</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-home" class="view">
+      <h2>系统概览</h2>
+      <div class="stat-row">
+        <div class="stat-card"><span id="stat-health">-</span><label>存活状态</label></div>
+        <div class="stat-card"><span id="stat-devices">-</span><label>设备数</label></div>
+        <div class="stat-card"><span id="stat-events">-</span><label>事件数</label></div>
+        <div class="stat-card"><span id="stat-pending">-</span><label>待重试分发数</label></div>
+      </div>
+      <h3>最近事件</h3>
+      <table id="recent-events">
+        <thead><tr><th>event_id</th><th>设备</th><th>指标</th><th>值</th><th>状态</th><th>时间</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="view-devices" class="view" hidden>
+      <h2>设备管理</h2>
+      <form id="device-form">
+        <input id="device-id" placeholder="设备编号 device_id（留空自动生成）">
+        <input id="device-name" placeholder="设备名称" required>
+        <input id="device-version" placeholder="协议版本（默认 v1）">
+        <button type="submit">注册设备</button>
+      </form>
+      <table id="device-table">
+        <thead><tr><th>device_id</th><th>名称</th><th>状态</th><th>协议</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="view-telemetry" class="view" hidden>
+      <h2>报文上报</h2>
+      <textarea id="telemetry-raw" rows="3" placeholder="协议报文，例如: DEVICE01|2024-01-01T00:00:00Z|temperature|25.5|C|XXXX"></textarea>
+      <button id="telemetry-submit">提交上报</button>
+      <div id="telemetry-result"></div>
+    </section>
+
+    <section id="view-rules" class="view" hidden>
+      <h2>路由规则</h2>
+      <form id="rule-form">
+        <input id="rule-id" placeholder="rule_id（留空自动生成）">
+        <input id="rule-name" placeholder="规则名称" required>
+        <input id="rule-metric" placeholder="匹配指标（逗号分隔，空=全部）">
+        <input id="rule-device-pattern" placeholder="设备匹配模式（如 DEV*，空=全部）">
+        <input id="rule-topic" placeholder="下行主题 topic" required>
+        <input id="rule-priority" type="number" placeholder="优先级" value="0">
+        <label><input id="rule-enabled" type="checkbox" checked> 启用</label>
+        <button type="submit">创建规则</button>
+      </form>
+      <table id="rule-table">
+        <thead><tr><th>rule_id</th><th>名称</th><th>topic</th><th>优先级</th><th>启用</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div id="rule-changes"></div>
+    </section>
+
+    <section id="view-events" class="view" hidden>
+      <h2>事件查询</h2>
+      <form id="event-filter">
+        <input id="f-device" placeholder="设备 device_id">
+        <input id="f-metric" placeholder="指标 metric">
+        <input id="f-status" placeholder="状态 status">
+        <input id="f-from" placeholder="起始时间 from">
+        <input id="f-to" placeholder="结束时间 to">
+        <button type="submit">查询</button>
+      </form>
+      <table id="event-table">
+        <thead><tr><th>event_id</th><th>设备</th><th>指标</th><th>值</th><th>单位</th><th>状态</th><th>时间</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

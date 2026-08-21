@@ -1,0 +1,81 @@
+package service
+
+import (
+	"context"
+
+	"device-telemetry-router/internal/domain"
+)
+
+// ReplayEvent re-dispatches an existing event through currently-enabled
+// rules, producing fresh pending delivery records. It is idempotent with
+// respect to the event (new records are only created for rules that match and
+// for which no undispatched record is already pending).
+func (s *Service) ReplayEvent(ctx context.Context, eventID string) (*ReplayResult, error) {
+	ev, err := s.GetEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := s.now().UTC()
+	rules, err := s.store.ListRules(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	matched := s.router.Match(*ev, rules)
+
+	// Load existing delivery records to avoid duplicating pending work.
+	existing, err := s.store.ListDeliveriesByEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	pending := map[string]bool{}
+	for _, d := range existing {
+		if d.Status == domain.DeliveryPending || d.Status == domain.DeliveryFailed {
+			pending[d.RuleID] = true
+		}
+	}
+
+	created := make([]string, 0, len(matched))
+	for _, r := range matched {
+		if pending[r.RuleID] {
+			continue
+		}
+		if err := s.store.CreateDelivery(ctx, domain.DeliveryRecord{
+			EventID:     eventID,
+			RuleID:      r.RuleID,
+			Topic:       r.Topic,
+			Status:      domain.DeliveryPending,
+			Attempts:    0,
+			NextRetryAt: &now,
+		}); err != nil {
+			return nil, err
+		}
+		created = append(created, r.RuleID)
+	}
+	matchedIDs := make([]string, 0, len(matched))
+	for _, r := range matched {
+		matchedIDs = append(matchedIDs, r.RuleID)
+	}
+	return &ReplayResult{
+		EventID:       eventID,
+		MatchedRules:  matchedIDs,
+		CreatedRules:  created,
+		ReplayedCount: len(created),
+	}, nil
+}
+
+// ReplayResult reports the outcome of an event replay.
+type ReplayResult struct {
+	EventID       string   `json:"event_id"`
+	MatchedRules  []string `json:"matched_rules"`
+	CreatedRules  []string `json:"created_rules"`
+	ReplayedCount int      `json:"replayed_count"`
+}
+
+// ListDeliveries returns all delivery records for an event.
+func (s *Service) ListDeliveries(ctx context.Context, eventID string) ([]domain.DeliveryRecord, error) {
+	if _, err := s.GetEvent(ctx, eventID); err != nil {
+		return nil, err
+	}
+	return s.store.ListDeliveriesByEvent(ctx, eventID)
+}

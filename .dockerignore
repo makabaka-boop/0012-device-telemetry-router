@@ -1,0 +1,19 @@
+# 构建上下文忽略清单：避免把本机产物、容器残留、无关文件打进 zip/镜像
+.git
+.idea
+.vscode
+*.log
+
+# 编译产物与前端构建产物
+/out
+/server
+bin/
+dist/
+
+# 依赖缓存（均由 Docker 构建阶段重新下载）
+vendor/
+node_modules/
+
+# 评测过程产物
+BUG_REPRO.md
+*.zip
