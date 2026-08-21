@@ -98,6 +98,53 @@ type RouteRule struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
+// RouteTarget identifies one ordered destination selected for an event.
+type RouteTarget struct {
+	RuleID string
+	Topic  string
+}
+
+// RoutingPlan is the ordered set of destinations produced by routing.
+type RoutingPlan struct {
+	ruleIDs []string
+	topics  []string
+}
+
+// NewRoutingPlan constructs a plan from parallel ordered rule and topic lists.
+func NewRoutingPlan(ruleIDs, topics []string) RoutingPlan {
+	return RoutingPlan{ruleIDs: ruleIDs, topics: topics}
+}
+
+// Len returns the number of complete route targets in the plan.
+func (p RoutingPlan) Len() int {
+	if len(p.ruleIDs) < len(p.topics) {
+		return len(p.ruleIDs)
+	}
+	return len(p.topics)
+}
+
+// Target returns the route target at index and reports whether it exists.
+func (p RoutingPlan) Target(index int) (RouteTarget, bool) {
+	if index < 0 || index >= p.Len() {
+		return RouteTarget{}, false
+	}
+	return RouteTarget{RuleID: p.ruleIDs[index], Topic: p.topics[index]}, true
+}
+
+// RuleIDs returns the ordered rule identifiers in the plan.
+func (p RoutingPlan) RuleIDs() []string {
+	ids := make([]string, len(p.ruleIDs))
+	copy(ids, p.ruleIDs)
+	return ids
+}
+
+// Topics returns the ordered topics in the plan.
+func (p RoutingPlan) Topics() []string {
+	topics := make([]string, len(p.topics))
+	copy(topics, p.topics)
+	return topics
+}
+
 // ChangeAction enumerates the audit actions for rule changes.
 type ChangeAction string
 

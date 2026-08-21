@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"device-telemetry-router/internal/domain"
+	"device-telemetry-router/internal/router"
 )
 
 // ReplayEvent re-dispatches an existing event through currently-enabled
@@ -22,6 +23,7 @@ func (s *Service) ReplayEvent(ctx context.Context, eventID string) (*ReplayResul
 		return nil, err
 	}
 	matched := s.router.Match(*ev, rules)
+	plan := router.BuildPlan(matched)
 
 	// Load existing delivery records to avoid duplicating pending work.
 	existing, err := s.store.ListDeliveriesByEvent(ctx, eventID)
@@ -35,30 +37,30 @@ func (s *Service) ReplayEvent(ctx context.Context, eventID string) (*ReplayResul
 		}
 	}
 
-	created := make([]string, 0, len(matched))
-	for _, r := range matched {
-		if pending[r.RuleID] {
+	created := make([]string, 0, plan.Len())
+	for i := 0; i < plan.Len(); i++ {
+		target, ok := plan.Target(i)
+		if !ok {
+			continue
+		}
+		if pending[target.RuleID] {
 			continue
 		}
 		if err := s.store.CreateDelivery(ctx, domain.DeliveryRecord{
 			EventID:     eventID,
-			RuleID:      r.RuleID,
-			Topic:       r.Topic,
+			RuleID:      target.RuleID,
+			Topic:       target.Topic,
 			Status:      domain.DeliveryPending,
 			Attempts:    0,
 			NextRetryAt: &now,
 		}); err != nil {
 			return nil, err
 		}
-		created = append(created, r.RuleID)
-	}
-	matchedIDs := make([]string, 0, len(matched))
-	for _, r := range matched {
-		matchedIDs = append(matchedIDs, r.RuleID)
+		created = append(created, target.RuleID)
 	}
 	return &ReplayResult{
 		EventID:       eventID,
-		MatchedRules:  matchedIDs,
+		MatchedRules:  plan.RuleIDs(),
 		CreatedRules:  created,
 		ReplayedCount: len(created),
 	}, nil

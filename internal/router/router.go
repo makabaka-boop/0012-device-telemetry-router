@@ -54,6 +54,33 @@ func Topics(rules []domain.RouteRule) []string {
 	return topics
 }
 
+// BuildPlan converts ordered matched rules into the compact value consumed by
+// ingestion and replay.
+func BuildPlan(rules []domain.RouteRule) domain.RoutingPlan {
+	switch len(rules) {
+	case 0:
+		return domain.NewRoutingPlan([]string{}, []string{})
+	case 1:
+		return domain.NewRoutingPlan(
+			[]string{rules[0].RuleID},
+			[]string{rules[0].Topic},
+		)
+	}
+
+	scratch := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		scratch = append(scratch, rule.RuleID)
+	}
+	ruleIDs := scratch
+
+	topics := scratch[:0]
+	for _, rule := range rules {
+		topics = append(topics, rule.Topic)
+	}
+
+	return domain.NewRoutingPlan(ruleIDs, topics)
+}
+
 func matchDevice(pattern, deviceID string) bool {
 	if pattern == "" {
 		return true

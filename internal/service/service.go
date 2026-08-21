@@ -178,14 +178,16 @@ func (s *Service) IngestTelemetry(ctx context.Context, rawText string) (*Telemet
 			return err
 		}
 		matched := s.router.Match(event, rules)
-		topics := router.Topics(matched)
-		matchedRuleIDs := make([]string, 0, len(matched))
-		for i, r := range matched {
-			matchedRuleIDs = append(matchedRuleIDs, r.RuleID)
+		plan := router.BuildPlan(matched)
+		for i := 0; i < plan.Len(); i++ {
+			target, ok := plan.Target(i)
+			if !ok {
+				continue
+			}
 			if err := txs.CreateDelivery(ctx, domain.DeliveryRecord{
 				EventID:     eventID,
-				RuleID:      r.RuleID,
-				Topic:       topics[i],
+				RuleID:      target.RuleID,
+				Topic:       target.Topic,
 				Status:      domain.DeliveryPending,
 				Attempts:    0,
 				NextRetryAt: &now,
@@ -196,8 +198,8 @@ func (s *Service) IngestTelemetry(ctx context.Context, rawText string) (*Telemet
 		result = &TelemetryResult{
 			EventID:      eventID,
 			Duplicate:    false,
-			MatchedRules: matchedRuleIDs,
-			Topics:       topics,
+			MatchedRules: plan.RuleIDs(),
+			Topics:       plan.Topics(),
 		}
 		return nil
 	})
@@ -225,10 +227,9 @@ func (s *Service) duplicateResult(ctx context.Context, existing *domain.RawMessa
 			rules, err := s.store.ListRules(ctx, false)
 			if err == nil {
 				matched := s.router.Match(*ev, rules)
-				res.Topics = router.Topics(matched)
-				for _, r := range matched {
-					res.MatchedRules = append(res.MatchedRules, r.RuleID)
-				}
+				plan := router.BuildPlan(matched)
+				res.Topics = plan.Topics()
+				res.MatchedRules = plan.RuleIDs()
 			}
 		}
 	}
