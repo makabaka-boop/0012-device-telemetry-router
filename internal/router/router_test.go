@@ -85,3 +85,23 @@ func TestTopics(t *testing.T) {
 		t.Fatalf("unexpected topics: %v", got)
 	}
 }
+
+func TestBuildPlanPreservesRuleIDs(t *testing.T) {
+	rules := []domain.RouteRule{
+		rule("temp-high", "", "temperature", "telemetry/priority", 20, true),
+		rule("temp-archive", "", "temperature", "telemetry/archive", 10, true),
+	}
+	plan := BuildPlan(rules)
+	if got, want := plan.RuleIDs(), []string{"temp-high", "temp-archive"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("rule IDs = %v, want %v", got, want)
+	}
+	if got, want := plan.Topics(), []string{"telemetry/priority", "telemetry/archive"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("topics = %v, want %v", got, want)
+	}
+	for i, want := range []domain.RouteTarget{{RuleID: "temp-high", Topic: "telemetry/priority"}, {RuleID: "temp-archive", Topic: "telemetry/archive"}} {
+		got, ok := plan.Target(i)
+		if !ok || got != want {
+			t.Fatalf("target %d = %#v, %v; want %#v, true", i, got, ok, want)
+		}
+	}
+}
