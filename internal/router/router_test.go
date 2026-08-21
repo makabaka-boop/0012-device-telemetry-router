@@ -1,6 +1,7 @@
 package router
 
 import (
+	"reflect"
 	"testing"
 
 	"device-telemetry-router/internal/domain"
